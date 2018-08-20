@@ -1,0 +1,17 @@
+Source: dadafits
+Section: science
+Priority: extra
+Maintainer: KERN packaging <packaging@kernsuite.info>
+Build-Depends: cmake,
+ debhelper (>=9),
+ nvidia-cuda-toolkit,
+ psrdada,
+ libcfitsio3-dev | libcfitsio-dev,
+Standards-Version: 3.9.8
+Homepage: https://github.com/AA-ALERT/dadafits
+
+Package: dadafits
+Architecture: any
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Connect to a PSRDADA ringbuffer and write FITS files
