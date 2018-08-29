@@ -132,10 +132,13 @@ const char *template_case34mode02 = "sc34_1bit_I_reduced.txt";
 const char *template_case4mode13 = "sc4_IQUV.txt";
 
 // Variables read from ring buffer header
-float min_frequency = 1492;
+float min_frequency;
 float bandwidth = 300;
 char ra_hms[256];
 char dec_hms[256];
+float scanlen;
+float center_frequency;
+char parset[24567];
 char source_name[256];
 char utc_start[256];
 double mjd_start;
@@ -224,6 +227,14 @@ dada_hdu_t *init_ringbuffer(char *key) {
     LOG("ERROR. DEC not set in dada buffer\n");
     header_incomplete = 1;
   }
+  if (ascii_header_get(header, "SCANLEN", "%f", &scanlen) == -1) {
+    LOG("ERROR. SCANLEN not set in dada buffer\n");
+    header_incomplete = 1;
+  }
+  if (ascii_header_get(header, "FREQ", "%f", &center_frequency) == -1) {
+    LOG("ERROR. FREQ not set in dada buffer\n");
+    header_incomplete = 1;
+  }
   if (ascii_header_get(header, "SOURCE", "%s", source_name) == -1) {
     LOG("ERROR. SOURCE not set in dada buffer\n");
     header_incomplete = 1;
@@ -246,6 +257,10 @@ dada_hdu_t *init_ringbuffer(char *key) {
   }
   if (ascii_header_get(header, "ZA_START", "%f", &za_start) == -1) {
     LOG("ERROR. ZA_START not set in dada buffer\n");
+    header_incomplete = 1;
+  }
+  if (ascii_header_get(header, "PARSET", "%s", parset) == -1) {
+    LOG("ERROR. PARSET not set in dada buffer\n");
     header_incomplete = 1;
   }
 
@@ -383,6 +398,12 @@ int main (int argc, char *argv[]) {
       nchannels = NCHANNELS_LOW;
       ntabs = 12;
       npols = 1;
+
+      // adjust min_frequency for downsampling:
+      // before |  x  |     |    |    |
+      // after  |  x        X         | small 'x' should be large 'X' : add 1.5 of the original channels
+      min_frequency = min_frequency + (1.5 * bandwidth / ((float) NCHANNELS));
+
       if (make_synthesized_beams) {
         LOG("Cannot write synthesized beams for compressed I+TAB\n");
         exit(EXIT_FAILURE);
@@ -400,6 +421,12 @@ int main (int argc, char *argv[]) {
       nchannels = NCHANNELS_LOW;
       ntabs = 1;
       npols = 1;
+
+      // adjust min_frequency for downsampling:
+      // before |  x  |     |    |    |
+      // after  |  x        X         | small 'x' should be large 'X' : add 1.5 of the original channels
+      min_frequency = min_frequency + (1.5 * bandwidth / ((float) NCHANNELS));
+
       if (make_synthesized_beams) {
         LOG("Cannot write synthesized beams for compressed I+IAB\n");
         exit(EXIT_FAILURE);
@@ -449,8 +476,8 @@ int main (int argc, char *argv[]) {
 
   LOG("Output to FITS tabs: %i, channels: %i, polarizations: %i, samples: %i\n", ntabs, nchannels, npols, ntimes);
   dadafits_fits_init(template_dir, template_file, output_directory,
-      ntabs, make_synthesized_beams, min_frequency, bandwidth / nchannels,
-      ra_hms, dec_hms, source_name, utc_start, mjd_start, lst_start);
+      ntabs, make_synthesized_beams, scanlen, center_frequency, bandwidth, min_frequency, bandwidth / nchannels,
+      ra_hms, dec_hms, source_name, utc_start, mjd_start, lst_start, parset);
 
   if (science_mode == 1 || science_mode == 3) {
     LOG("Allocating Stokes IQUV transpose buffer (%i,%i,%i,%i)\n", ntabs, NCHANNELS, NPOLS, ntimes);

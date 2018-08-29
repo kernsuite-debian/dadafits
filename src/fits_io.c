@@ -176,6 +176,9 @@ void write_fits(const int tab, const int channels, const int pols, const long ro
  * @param {char *} output_directory Directoy where output FITS files can be written.
  * @param {int} ntabs               Number of beams
  * @param {int} mode                0: one file per tab, 1: one file per selected synthesized beam
+ * @param {float} scanlen           requested observation length in seconds
+ * @param {float} center_frequency  Center frequency of observation
+ * @param {float} bandwidth         Bandwidth of observation
  * @param {float } min_frequency    Center of lowest frequency band of observation
  * @param {float } channelwidth     Width per channel, after optional downsampling
  * @param {char *} ra_hms           Right ascension
@@ -184,10 +187,12 @@ void write_fits(const int tab, const int channels, const int pols, const long ro
  * @param (char *) utc_start        Timestamp of start of the observation (UTC), program will silently apply correct field separators YYYY-MM-DDThh:mm:ss
  * @param (double) mjd_start        Start time of the observation in days
  * @param (double) lst_start        Local siderial time in degrees
+ * @param {char *} parset           Pointer to a NULL terminated parset string (note: this will contain illegal characters, fix that upstream
+ *                                  using fe. in python parset = parset.encode('bz2').encode('hex')
  */
 void dadafits_fits_init (const char *template_dir, const char *template_file, const char *output_directory,
-    const int ntabs, const int mode, const float min_frequency, const float channelwidth, char *ra_hms, char *dec_hms,
-    char *source_name, const char *utc_start, const double mjd_start, double lst_start) {
+    const int ntabs, const int mode, float scanlen, float center_frequency, float bandwidth, const float min_frequency, const float channelwidth, char *ra_hms, char *dec_hms,
+    char *source_name, const char *utc_start, const double mjd_start, double lst_start, char *parset) {
   char utc_start_fixed[256];
   int status;
   float version;
@@ -261,12 +266,18 @@ void dadafits_fits_init (const char *template_dir, const char *template_file, co
     status = 0; if (fits_write_date(fptr, &status))          fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TSTRING, "RA", ra_hms, NULL, &status)) fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TSTRING, "DEC", dec_hms, NULL, &status)) fits_error_and_exit(status);
+    status = 0; if (fits_update_key(fptr, TFLOAT, "SCANLEN", &scanlen, NULL, &status)) fits_error_and_exit(status);
+    status = 0; if (fits_update_key(fptr, TFLOAT, "OBSFREQ", &center_frequency, NULL, &status)) fits_error_and_exit(status);
+    status = 0; if (fits_update_key(fptr, TFLOAT, "OBSBW", &bandwidth, NULL, &status)) fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TSTRING, "SRC_NAME", source_name, NULL, &status)) fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TSTRING, "DATE-OBS", utc_start_fixed, NULL, &status)) fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TULONG, "STT_IMJD", &stt_imjd, NULL, &status)) fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TINT, "STT_SMJD", &stt_smjd, NULL, &status)) fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TDOUBLE, "STT_OFFS", &stt_offs, NULL, &status)) fits_error_and_exit(status);
     status = 0; if (fits_update_key(fptr, TDOUBLE, "STT_LST", &lst_start, NULL, &status)) fits_error_and_exit(status);
+
+    status = 0; if (fits_write_key_longwarn (fptr, &status)) fits_error_and_exit(status);
+    status = 0; if (fits_write_key_longstr(fptr, "PARSET", parset, NULL, &status)) fits_error_and_exit(status);
 
     status = 0; if (fits_write_chksum(fptr, &status))        fits_error_and_exit(status);
     status = 0; if (fits_movabs_hdu(fptr, 2, NULL, &status)) fits_error_and_exit(status);
